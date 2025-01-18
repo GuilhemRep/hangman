@@ -1,16 +1,18 @@
 exception Break
 
+(** [print_list l] where [l] is a list of strings prints each of its elements, separated by a space *)
 let print_list l =  List.iter (fun c->print_string c; print_string " ") l
 
+(** Same as [print_list], but only displays the 10 first elements *)
 let print_first_10 l =
   let rec aux l c = match l with 
     |[] -> ()
-    |_ when c>=10 -> print_string "..."
-    |t::q -> print_string t; print_string " "; aux q (c+1)
+    |t::q when c>=10 -> print_string ("... and "^(Int.to_string (List.length q))^" more.")
+    |t::q -> print_string " "; print_string t; aux q (c+1)
   in
     aux l 0 
 
-(** Reads the text file [file] and returns a list of its lines in the form of a string list*)
+(** Reads the text file [file] and returns a string list of its lines *)
 let read_dict (file:string) : string list =
   let ic = open_in file in
   let l = ref [] in
@@ -33,9 +35,8 @@ let in_letter (c:char) (word:string) : bool =
     false
   ) with _ -> true
 
-
 (** Outputs the wardest possible configuration *)
-let hardest (level:int) (remaining_words:string list) (letter:string) =
+let hardest (word_length:int) (remaining_words:string list) (letter:string) =
   (** Adds the pattern in the list of known patterns *)
   let rec update l p = match l with
     | []                   -> [(p,1)]
@@ -45,7 +46,7 @@ let hardest (level:int) (remaining_words:string list) (letter:string) =
   let rec paternize l letter = match l with
     | []   -> []
     | t::q -> (
-      let pattern = String.init level (fun i-> if t.[i]=letter.[0] then letter.[0] else '_') in
+      let pattern = String.init word_length (fun i-> if t.[i]=letter.[0] then letter.[0] else '_') in
       pattern::(paternize q letter)
     ) in
   (** Outputs the pattern that encompasses the most words *)
@@ -57,14 +58,15 @@ let hardest (level:int) (remaining_words:string list) (letter:string) =
     let list_patterns = paternize remaining_words letter in
     let sorted_patterns = List.fold_left update [] list_patterns in
     let c = find_hardest sorted_patterns "" (-1) in
-    assert (String.length c == level);
+    assert (String.length c == word_length);
     c
 
-let is_compatible w config letter = 
-  assert (String.length w = String.length config);
+(** Outputs whether [w] correponds to the [pattern], with the new [letter] *)
+let is_compatible word pattern letter = 
+  assert (String.length word = String.length pattern);
   try (
-  for i=0 to (String.length w - 1) do 
-    match config.[i],w.[i] with
+  for i=0 to (String.length word - 1) do 
+    match pattern.[i],word.[i] with
     | (c,w) when c=letter -> if w=letter then () else raise Break
     | (c,w) when c='_' -> if w=letter then raise Break else ()
     | _ -> ()
@@ -73,12 +75,12 @@ let is_compatible w config letter =
   )
   with _ -> false 
 
-
-let rec filter l (config:string) letter = match l with
+(** Only keeps words that correspond to the [pattern] *)
+let rec filter l (pattern:string) letter = match l with
   | []   -> []
-  | t::q -> if is_compatible t config letter then t::(filter q config letter) else (filter q config letter)
+  | t::q -> if is_compatible t pattern letter then t::(filter q pattern letter) else (filter q pattern letter)
 
-
+(** Only keeps words of length [n] *)
 let rec filter_size l n = match l with
   | []   -> []
   | t::q when String.length t = n -> t::(filter_size q n)
@@ -90,29 +92,30 @@ let rec insert x l = match l with
   | t::q when t=x -> l
   | t::q -> t::(insert x q)
 
+(** Print a drawing *)
 let hanged n word l =
 let aux n = match n with
 | 0 ->
   [|
   "";
-  "         ";
-  "         ";
+  "          ";
+  "          ";
   "";
   ""
   |]
 | 1 ->
   [|
   "";
-  "         ";
-  "         ";
+  "          ";
+  "          ";
   "";
   "_______   "
   |]
 | 2 ->
 [|
   " |";
-  " |       ";
-  " |       ";
+  " |        ";
+  " |        ";
   " |";
   "_|_____   "
 |]
@@ -134,11 +137,11 @@ let aux n = match n with
 |]
 | 5->
   [|
-    " |------| ";
-    " |/       ";
-    " |        ";
-    " |";
-    "_|_____   "
+  " |------| ";
+  " |/       ";
+  " |        ";
+  " |";
+  "_|_____   "
   |]
 | 6 ->
   [|
@@ -202,8 +205,10 @@ in
     print_newline()
     )) (aux n)
 
+(** Checks if all letters of [word] were found *)
 let victory word = not (in_letter '_' (Bytes.to_string word))
 
+(** Shuffle an array [a] *)
 let knuth_shuffle a =
   let n = Array.length a in
   let a = Array.copy a in
@@ -215,21 +220,24 @@ let knuth_shuffle a =
   done;
   a
 
+(** Clears the terminal *)
 let clear() =
   let a = Sys.command("clear") in assert (a=a)
 
+
+(** Main program *)
 let () =
   Random.self_init();
   let word_list = ref (read_dict "dict.txt") in
-  let level = 3 + Random.int (6+1) in
-  word_list:= filter_size (!word_list) level;
+  let word_length = 5 + Random.int (6+1) in
+  word_list:= filter_size (!word_list) word_length;
   word_list:= Array.to_list (knuth_shuffle (Array.of_list (!word_list)));
 
   let tries = ref 0 in
   let bad_letters = ref [] in
 
-  let word = Bytes.create level in
-  for i=0 to (level-1) do 
+  let word = Bytes.create word_length in
+  for i=0 to (word_length-1) do 
     Bytes.set word i '_';
   done;
 
@@ -238,11 +246,13 @@ let () =
   let changed = ref false in
   while (not (victory word) && (!tries<11)) do
     clear();
-    print_string "=== Impossible hangman ===\n";
+    print_string "======= The Impossible Hangman =======\n";
+    print_newline();
     hanged (!tries) word !bad_letters;
+    print_newline();
     if help_mode then (
       print_newline();
-      print_string ">>> ";
+      print_string ">>>";
       print_first_10 (!word_list);
       print_string " <<<";
       print_newline();print_newline();
@@ -255,10 +265,10 @@ let () =
     | None -> ()
     | Some letter when String.length letter = 1 && List.exists (fun x-> x=letter) (!bad_letters) -> ()
     | Some letter when String.length letter = 1 -> (
-      let config = hardest level (!word_list) letter in
+      let config = hardest word_length (!word_list) letter in
       word_list := filter (!word_list) config letter.[0];
       changed:= false;
-      for i=0 to (level-1) do 
+      for i=0 to (word_length-1) do 
         if config.[i]<>'_' then 
           (
             Bytes.set word i (config.[i]);
@@ -270,8 +280,11 @@ let () =
     | Some bonus -> ()      
     done;
     clear();
-    print_string "=== Impossible hangman ===\n";
+    print_string "======= Impossible hangman =======\n";
+    print_newline();
     hanged (!tries) word !bad_letters;
+    print_newline();
+    print_newline();
     if (not (victory word)) then (
       print_string "You lost.";
     match (!word_list) with
