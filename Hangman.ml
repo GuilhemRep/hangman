@@ -240,6 +240,7 @@ let () =
     let user_input = In_channel.input_line In_channel.stdin in
     match user_input with
     | None -> ()
+    | Some letter when String.length letter = 1 && List.exists (fun x-> x=letter) (!bad_letters) -> ()
     | Some letter when String.length letter = 1 -> (
       let config = hardest level (!word_list) letter in
       word_list := filter (!word_list) config letter.[0];
