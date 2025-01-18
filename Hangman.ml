@@ -2,6 +2,14 @@ exception Break
 
 let print_list l =  List.iter (fun c->print_string c; print_string " ") l
 
+let print_first_10 l =
+  let rec aux l c = match l with 
+    |[] -> ()
+    |_ when c>=10 -> print_string "..."
+    |t::q -> print_string t; print_string " "; aux q (c+1)
+  in
+    aux l 0 
+
 (** Reads the text file [file] and returns a list of its lines in the form of a string list*)
 let read_dict (file:string) : string list =
   let ic = open_in file in
@@ -211,30 +219,35 @@ let clear() =
   let a = Sys.command("clear") in assert (a=a)
 
 let () =
-  let word_list = ref (read_dict "dict.txt") in
   Random.self_init();
+  let word_list = ref (read_dict "dict.txt") in
   let level = 3 + Random.int (6+1) in
-
-  let bad_letters = ref [] in
-
   word_list:= filter_size (!word_list) level;
-
-  
   word_list:= Array.to_list (knuth_shuffle (Array.of_list (!word_list)));
 
   let tries = ref 0 in
+  let bad_letters = ref [] in
 
   let word = Bytes.create level in
   for i=0 to (level-1) do 
     Bytes.set word i '_';
   done;
 
+  let help_mode = true in
+
   let changed = ref false in
-  
   while (not (victory word) && (!tries<11)) do
     clear();
     print_string "=== Impossible hangman ===\n";
     hanged (!tries) word !bad_letters;
+    if help_mode then (
+      print_newline();
+      print_string ">>> ";
+      print_first_10 (!word_list);
+      print_string " <<<";
+      print_newline();print_newline();
+    );
+
     print_string "Next letter: ";
     print_newline();
     let user_input = In_channel.input_line In_channel.stdin in
@@ -260,10 +273,10 @@ let () =
     print_string "=== Impossible hangman ===\n";
     hanged (!tries) word !bad_letters;
     if (not (victory word)) then (
-      print_string "You lose.";
+      print_string "You lost.";
     match (!word_list) with
       | [] -> failwith "Impossible"
       | t::q -> print_string (" The word was "^t^".\n")
     ) else (
-      print_string ("You win! The word was indeed " ^ (Bytes.to_string word) ^ ".\n")
+      print_string ("You won! The word was indeed " ^ (Bytes.to_string word) ^ ".\n")
     )
