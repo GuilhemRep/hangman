@@ -7,7 +7,7 @@ let print_list l =  List.iter (fun c->print_string c; print_string " ") l
 let print_first_10 l =
   let rec aux l c = match l with 
     |[] -> ()
-    |t::q when c>=10 -> print_string ("... and "^(Int.to_string (List.length q))^" more.")
+    |t::q when c>=10 -> print_string (" and "^(Int.to_string (List.length q))^" more.")
     |t::q -> print_string " "; print_string t; aux q (c+1)
   in
     aux l 0 
@@ -224,9 +224,17 @@ let knuth_shuffle a =
 let clear() =
   let a = Sys.command("clear") in assert (a=a)
 
+let title () = print_string "======= The Impossible Hangman =======\n"
 
 (** Main program *)
 let () =
+  let help_mode = 
+  (if (Array.length Sys.argv) = 2 then (
+    let mode = (Sys.argv.(1)) in
+    mode = "-h"
+  ) else (
+    false
+  )) in
   Random.self_init();
   let word_list = ref (read_dict "dict.txt") in
   let word_length = 5 + Random.int (6+1) in
@@ -241,16 +249,17 @@ let () =
     Bytes.set word i '_';
   done;
 
-  let help_mode = true in
+  
 
   let changed = ref false in
   while (not (victory word) && (!tries<11)) do
     clear();
-    print_string "======= The Impossible Hangman =======\n";
+    title();
     print_newline();
     hanged (!tries) word !bad_letters;
     print_newline();
     if help_mode then (
+      print_string "Possible words:";
       print_newline();
       print_string ">>>";
       print_first_10 (!word_list);
@@ -280,7 +289,7 @@ let () =
     | Some bonus -> ()      
     done;
     clear();
-    print_string "======= Impossible hangman =======\n";
+    title();
     print_newline();
     hanged (!tries) word !bad_letters;
     print_newline();
