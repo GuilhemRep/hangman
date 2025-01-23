@@ -1,5 +1,5 @@
 # The Quantum Hangman
-Another quantum game
+Another impossible game
 
 ![illustration](img.png) 
 

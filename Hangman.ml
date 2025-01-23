@@ -250,7 +250,7 @@ let () =
   )) in
   Random.self_init();
 
-  let mode = Easiest in
+  let mode = Hardest in
 
   let word_list = ref (read_dict "dict.txt") in
   let word_length = 5 + Random.int (6+1) in
