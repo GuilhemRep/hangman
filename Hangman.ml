@@ -1,5 +1,7 @@
 exception Break
 
+type mode = Hardest | Easiest
+
 (** [print_list l] where [l] is a list of strings prints each of its elements, separated by a space *)
 let print_list l =  List.iter (fun c->print_string c; print_string " ") l
 
@@ -35,8 +37,8 @@ let in_letter (c:char) (word:string) : bool =
     false
   ) with _ -> true
 
-(** Outputs the wardest possible configuration *)
-let hardest (word_length:int) (remaining_words:string list) (letter:string) =
+(** Outputs the next configuration based on chosen difficulty *)
+let next_configuration (word_length:int) (remaining_words:string list) (letter:string) (mode:mode) =
   (** Adds the pattern in the list of known patterns *)
   let rec update l p = match l with
     | []                   -> [(p,1)]
@@ -50,14 +52,25 @@ let hardest (word_length:int) (remaining_words:string list) (letter:string) =
       pattern::(paternize q letter)
     ) in
   (** Outputs the pattern that encompasses the most words *)
-  let rec find_hardest l candidate m = match l with 
+  let rec find l candidate m mode = match l with 
     | [] -> candidate
-    | (p',c)::q when c>m -> find_hardest q  p' c
-    | (p',c)::q -> find_hardest q candidate m
+    | (p',c)::q -> (
+      match mode with
+      | Hardest -> (
+        if c>m then find q p' c mode else find q candidate m mode
+      )
+      | Easiest -> (
+        if c<m then find q p' c mode else find q candidate m mode
+      )
+
+    )
   in
     let list_patterns = paternize remaining_words letter in
     let sorted_patterns = List.fold_left update [] list_patterns in
-    let c = find_hardest sorted_patterns "" (-1) in
+    let c = match mode with
+      | Hardest -> find sorted_patterns "" (-1) mode
+      | Easiest -> find sorted_patterns "" (Int.max_int) mode
+    in
     assert (String.length c == word_length);
     c
 
@@ -224,7 +237,7 @@ let knuth_shuffle a =
 let clear() =
   let a = Sys.command("clear") in assert (a=a)
 
-let title () = print_string "======= The Impossible Hangman =======\n"
+let title () = print_string "======= The Quantum Hangman =======\n"
 
 (** Main program *)
 let () =
@@ -236,6 +249,9 @@ let () =
     false
   )) in
   Random.self_init();
+
+  let mode = Easiest in
+
   let word_list = ref (read_dict "dict.txt") in
   let word_length = 5 + Random.int (6+1) in
   word_list:= filter_size (!word_list) word_length;
@@ -274,7 +290,7 @@ let () =
     | None -> ()
     | Some letter when String.length letter = 1 && List.exists (fun x-> x=letter) (!bad_letters) -> ()
     | Some letter when String.length letter = 1 -> (
-      let config = hardest word_length (!word_list) letter in
+      let config = next_configuration word_length (!word_list) letter mode in
       word_list := filter (!word_list) config letter.[0];
       changed:= false;
       for i=0 to (word_length-1) do 
